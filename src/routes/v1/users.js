@@ -1,8 +1,14 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
+const fetch = require('node-fetch');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { mysqlConfig, jwtCode } = require('../../config');
+const {
+  mysqlConfig,
+  jwtCode,
+  mailServerPassword,
+  mailServer,
+} = require('../../config');
 const {
   loginValidation,
   registerValidation,
@@ -70,7 +76,7 @@ router.post(
   checkIfLoggedIn,
   async (req, res) => {
     try {
-      const con = await mysql.createConnection(mySqlConfig);
+      const con = await mysql.createConnection(mysqlConfig);
       const [data] = await con.execute(
         `SELECT id, email, password FROM users WHERE id=${mysql.escape(
           req.user.id,
@@ -110,7 +116,7 @@ router.post(
   validation(resetPasswordValidation),
   async (req, res) => {
     try {
-      const con = await mysql.createConnection(mySqlConfig);
+      const con = await mysql.createConnection(mysqlConfig);
       const [data1] = await con.execute(
         `SELECT id FROM users WHERE email = ${mysql.escape(
           req.body.email,
@@ -138,24 +144,24 @@ router.post(
           .status(500)
           .send({ msg: 'something wrong with server, please try again later' });
       }
-
       const response = await fetch(mailServer, {
         method: 'POST',
         body: JSON.stringify({
-          password: mailServerPassword,
-          email: req.body.email,
-          message: `If you requested for a new password, please visit this link http://localhost:8080/v1/users/new-password?email=${encodeURI(
+          auth: mailServerPassword,
+          to: req.body.email,
+          text: `Please visit this link http://127.0.0.1:5500/newPassword.html?email=${encodeURI(
             req.body.email,
           )}&token=${randomCode}`,
         }),
         headers: { 'Content-Type': 'application/json' },
       });
       const json = await response.json();
+      console.log(json);
 
-      if (!json.info) {
-        return res
-          .status(500)
-          .send({ msg: 'something wrong with server, please try again later' });
+      if (!json.id) {
+        return res.status(500).send({
+          msg: 'something wrong with the server, please try again later',
+        });
       }
 
       return res.send({
@@ -163,9 +169,9 @@ router.post(
       });
     } catch (err) {
       console.log(err);
-      return res
-        .status(500)
-        .send({ msg: 'something wrong with server, please try again later' });
+      return res.status(500).send({
+        msg: 'something wrong with the server, please try again later',
+      });
     }
   },
 );
@@ -175,7 +181,7 @@ router.post(
   validation(newPasswordValidation),
   async (req, res) => {
     try {
-      const con = await mysql.createConnection(mySqlConfig);
+      const con = await mysql.createConnection(mysqlConfig);
       const [data] = await con.execute(
         `SELECT * FROM reset_tokens WHERE email=${mysql.escape(
           req.body.email,

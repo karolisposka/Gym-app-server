@@ -21,7 +21,7 @@ router.get('/stats', checkIfLoggedIn, async (req, res) => {
   }
 });
 
-router.get('/test', checkIfLoggedIn, async (req, res) => {
+router.get('/userData', checkIfLoggedIn, async (req, res) => {
   try {
     const con = await mysql.createConnection(mysqlConfig);
     const [data] = await con.execute(
